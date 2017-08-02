@@ -1,21 +1,19 @@
 class WeatherReader
 
   def initialize(path)
-    @file = File.new(path, "r")
+    @filepath = path
     @spreads = {}
   rescue => err
     err
   end
 
-  def close
-    file.close
-  end
-
   def read
     regex = /\s+(?<day>\d+)\s+(?<max>\d+)\s+(?<min>\d+)/
-    while(line = file.gets)
-      if(@matched_line = line.match(regex))
-        store_spread
+    File.new(filepath, "r") do |file|
+      while(line = file.gets)
+        if(@matched_line = line.match(regex))
+          store_spread
+        end
       end
     end
   end
@@ -33,7 +31,5 @@ class WeatherReader
     spreads[day] = (max - min).abs
   end
 
-  attr_reader :file
-  attr_reader :spreads
-  attr_reader :matched_line
+  attr_reader :filepath :spreads, :matched_line
 end
