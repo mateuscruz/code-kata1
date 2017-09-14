@@ -1,42 +1,78 @@
 require_relative "../spread_reader"
 
 describe SpreadReader do
-  subject { described_class }
 
   describe "#call" do
     context "when file doesn't exist" do
-      it "raises Errno::ENOENT error" do
-        expect{
-          subject.new("example.dat").call { |line| line }
-        }.to raise_error(Errno::ENOENT)
+      it "raises FileNotFoundError error" do
+        reader = SpreadReader.new("example.dat")
+
+        expect {
+          reader.call
+        }.to raise_error(SpreadReader::FileNotFoundError)
       end
     end
 
     context "when file exists" do
-      context "and the information source is given" do
-        it "returns min spread" do
-          # pensar numa forma mais clara de escrever este teste
-          source = /(?<label>[a-zA-Z]+)\s+(?<max>\d+)\s+(?<min>\d+)/
+      context "and block is given" do
+        context "and block returns all required sources" do
+          it "returns min spread" do
+            reader = SpreadReader.new("spec/test.dat")
 
-          expect(
-            subject.new("spec/test.dat").call do |line|
-              if matched_line = line.match(source)
+            spread = reader.call do |line|
+              if matched_line = line.split(" ")
                 {
-                  label: matched_line[:label],
-                  max:   matched_line[:max],
-                  min:   matched_line[:min],
+                  label: matched_line[0],
+                  max:   matched_line[1],
+                  min:   matched_line[2],
                 }
               end
             end
-          ).to match_array(["b", 3])
+
+            expect(spread).to match_array(["b", 3])
+          end
+        end
+
+        context "but a source is missing" do
+          it "raises KeyMissingError" do
+            reader = SpreadReader.new("spec/test.dat")
+
+            expect {
+              reader.call do |line|
+                if matched_line = line.split(" ")
+                  {
+                    label: matched_line[0],
+                    max: matched_line[1],
+                  }
+                end
+              end
+            }.to raise_error(
+              SpreadReader::KeyMissingError,
+              "Key 'min' is missing. The required keys are [:label, :max, :min]"
+            )
+          end
+        end
+
+        context "but an object that does not respond to :[] not returned" do
+          xit "raises KeyMissingError" do
+            reader = SpreadReader.new("spec/test.dat")
+
+            expect {
+              reader.call { nil }
+            }.to raise_error(
+              SpreadReader::KeyMissingError,
+              "Key 'label' is missing. The required keys are [:label, :max, :min]"
+
+            )
+          end
         end
       end
 
-      # faltou testar quando algum parametro esta faltando
-
-      context "and the information source is not given" do
-        it "raises argument error" do
-          expect { subject.new("spec/test.dat").call }.to raise_error(ArgumentError)
+      context "and the block is not given" do
+        it "raises BlockMissingError" do
+          expect {
+            SpreadReader.new("spec/test.dat").call
+          }.to raise_error(SpreadReader::BlockMissingError)
         end
       end
     end
