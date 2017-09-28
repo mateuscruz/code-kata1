@@ -23,8 +23,8 @@ describe SpreadReader do
               if matched_line = line.split(" ")
                 {
                   label: matched_line[0],
-                  max:   matched_line[1],
-                  min:   matched_line[2],
+                  max:   matched_line[1].to_i,
+                  min:   matched_line[2].to_i,
                 }
               end
             end
@@ -33,7 +33,7 @@ describe SpreadReader do
           end
         end
 
-        context "but a source is missing" do
+        context "but a key is missing" do
           it "raises KeyMissingError" do
             reader = SpreadReader.new("spec/test.dat")
 
@@ -53,17 +53,35 @@ describe SpreadReader do
           end
         end
 
-        context "but an object that does not respond to :[] not returned" do
-          xit "raises KeyMissingError" do
+        context "but the value of a key is nil" do
+          it "raises NilValueError" do
+            reader = SpreadReader.new("spec/test.dat")
+
+            expect {
+              reader.call do |line|
+                matched_line = line.split(" ")
+                if matched_line
+                  {
+                    label: line[0],
+                    min:   nil,
+                    max:   line[2],
+                  }
+                end
+              end
+            }.to raise_error(
+              SpreadReader::NilValueError,
+              "Value for 'min' cannot be nil."
+            )
+          end
+        end
+
+        context "but the block returns nil" do
+          it "raises SourceMissingError" do
             reader = SpreadReader.new("spec/test.dat")
 
             expect {
               reader.call { nil }
-            }.to raise_error(
-              SpreadReader::KeyMissingError,
-              "Key 'label' is missing. The required keys are [:label, :max, :min]"
-
-            )
+            }.to raise_error(SpreadReader::SourceMissingError)
           end
         end
       end

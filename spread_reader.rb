@@ -2,10 +2,13 @@ class SpreadReader
 
   REQUIRED_KEYS = [ :label, :max, :min ]
 
-  FileNotFoundError    = Class.new(StandardError)
-  BlockMissingError    = Class.new(StandardError)
-  KeyMissingError      = Class.new(StandardError)
-  InvalidObjectError   = Class.new(StandardError)
+  SpreadReaderError    = Class.new(StandardError)
+  FileNotFoundError    = Class.new(SpreadReaderError)
+  BlockMissingError    = Class.new(SpreadReaderError)
+  KeyMissingError      = Class.new(SpreadReaderError)
+  InvalidObjectError   = Class.new(SpreadReaderError)
+  NilValueError        = Class.new(SpreadReaderError)
+  SourceMissingError   = Class.new(SpreadReaderError)
 
   def initialize(path)
     @filepath = path
@@ -23,11 +26,11 @@ class SpreadReader
     content.split("\n").each do |line|
       matched_line = block.call(line)
 
-      validate_keys(matched_line)
+      validate(matched_line)
 
       if matched_line
         spreads[matched_line[:label]] =
-          (matched_line[:max].to_i - matched_line[:min].to_i).abs
+          (matched_line[:max] - matched_line[:min]).abs
       end
     end
   end
@@ -40,14 +43,27 @@ class SpreadReader
 
   attr_reader :filepath, :spreads, :content
 
+  def validate(matched_line)
+    validate_source(matched_line)
+    validate_keys(matched_line)
+    validate_values(matched_line)
+  end
+
+  def validate_source(matched_line)
+    raise SourceMissingError unless matched_line
+  end
+
   def validate_keys(matched_line)
-    REQUIRED_KEYS.each do |label|
-      # Preciso tratar isso de um jeito mais resiliente
-      unless matched_line.has_key?(label)
-        raise KeyMissingError.new(
-          "Key '#{label}' is missing. The required keys are #{REQUIRED_KEYS}"
-        )
-      end
+    missing_keys = REQUIRED_KEYS - matched_line.keys
+    missing_keys.any?
+      raise KeyMissingError.new(
+        "Key '#{missing_keys.first}' is missing. The required keys are #{REQUIRED_KEYS}"
+      )
+  end
+
+  def validate_values(matched_line)
+    matched_line.each do |key, value|
+      raise NilValueError.new("Value for '#{key}' cannot be nil.") unless value
     end
   end
 
